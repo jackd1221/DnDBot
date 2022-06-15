@@ -2,6 +2,7 @@ const Discord = require("discord.js")
 
 require("dotenv").config()
 
+//test push
 
 const client = new Discord.Client({
     intents: [

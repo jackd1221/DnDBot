@@ -1,17 +1,44 @@
 const momentTimezone = require('moment-timezone')
 const { messageCollector } = require('discord.js')
-const scheduledSchema = require('../models/schedule-schema')
+const scheduledSchema  = require('../models/schedule-schema')
 
 module.exports = {
   requiredPermissions: ['ADMINISTRATOR'],
   expectedArgs: '<Channel Tag> <YYYY/MM/DD> <HH:MM> <"AM" or <PM> <Timezone>',
   minArgs: 5,
   maxArgs: 5,
-  init: () => {},
+  init: (client) => {
+    const checkForPosts = async () => {
+      const query = {
+        date: {
+          $lte: Date.now()
+        }
+      }
+      
+      const results = await scheduledSchema.find(query)
+
+      for(const post of results) {
+        const { guildId, channelId, content } = post
+
+        const guild = await client.guild.fetch(guildId)
+        if(!guild){
+          continue
+        }
+
+        const channel = guild.channels.cache.get(channelId)
+        if (!channel){
+          continue
+        }
+        channel.send(content)
+      }
+      await scheduledSchema.deleteMany(query)
+      setTimeout(checkForPosts, 1000*10)
+    }
+  },
   callback: async ({ message, args}) => {
     const {mentions, guild, channel} = message
     const targetChannel = mentions.channels.first()
-    if(!targetChanne) {
+    if(!targetChannel) {
       message.reply("Please Tag a channel to send your message")
       return
     }
@@ -47,7 +74,7 @@ module.exports = {
       time: 1000 * 60 // 60 seconds
     })
 
-    collector.on('end' async (collected) => {
+    collector.on('end', async (collected) => {
       const collectedMessage = collected.first()
 
       if(!collectedMessage) {
